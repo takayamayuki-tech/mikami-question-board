@@ -193,12 +193,14 @@ function safeStr_(v) {
   return String(v).trim();
 }
 
-// Addness 使用可否を 'yes' / 'no' / '' に正規化
+// Addness 登録状態を 'yes'(登録済み) / 'no'(未登録) / '' に正規化
 function normalizeConsent_(v) {
   const s = String(v || '').trim().toLowerCase();
   if (!s) return '';
-  if (/(はい|yes|ok|可|許可|大文字|^a$|addness)/i.test(s)) return 'yes';
-  if (/(いいえ|no|ng|不可|拒否|小文字)/i.test(s)) return 'no';
+  // 否定的表現を先に判定（「未登録」「登録なし」「登録していない」など）
+  if (/(未登録|登録なし|登録して(い|お)?ない|登録してい?ません|いいえ|^no\b|ng|不可|拒否|小文字|使用していない|使ってない|なし$|未回答|未使用)/i.test(s)) return 'no';
+  // 肯定的表現
+  if (/(登録済|登録してい?ます|登録してい?る|登録あり|あり|^yes\b|はい|ok|可|許可|大文字|^a$|addness|使用してい?る|使ってい?る|使用済)/i.test(s)) return 'yes';
   return s;
 }
 

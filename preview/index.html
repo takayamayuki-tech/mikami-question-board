@@ -379,8 +379,8 @@
     }
 
     function consentBadge(value) {
-      if (value === 'yes') return '<span class="badge badge-yes">Addness使用 OK</span>';
-      if (value === 'no') return '<span class="badge badge-no">Addness使用 NG</span>';
+      if (value === 'yes') return '<span class="badge badge-yes">Addness登録済み</span>';
+      if (value === 'no') return '<span class="badge badge-no">Addness未登録</span>';
       if (!value) return '<span class="badge badge-other">Addness未回答</span>';
       return '<span class="badge badge-other">Addness: ' + escapeHtml(value) + '</span>';
     }
