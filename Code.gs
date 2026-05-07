@@ -1,5 +1,5 @@
 /**
- * 三上グルコン 質問回答ボード - サーバーサイド
+ * みかみグルコン 質問回答シート - サーバーサイド
  *
  * - スプレッドシートをデータソースに、質問一覧を返す API
  * - 「回答済み」状態を書き戻す API
@@ -18,7 +18,7 @@ const HEADER_PATTERNS = {
   timestamp: [/タイムスタンプ/, /timestamp/i, /回答日$/, /送信日時/, /日時/],
   studentName: [/受講生/, /回答者/, /ニックネーム/, /お名前\(.*ニック/, /表示名/],
   realName: [/本名/, /氏名/, /フルネーム/, /^名前$/, /お名前$/],
-  question: [/質問内容/, /質問.*内容/, /三上.*質問/, /^質問/, /相談/],
+  question: [/質問内容/, /質問.*内容/, /三上.*質問/, /みかみ.*質問/, /^質問/, /相談/],
   addnessConsent: [/[Aa]ddness/, /アドネス/]
 };
 
@@ -31,7 +31,7 @@ function doGet(e) {
   }
   return HtmlService.createTemplateFromFile('Index')
     .evaluate()
-    .setTitle('三上グルコン 質問回答ボード')
+    .setTitle('みかみグルコン 質問回答シート')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
@@ -193,7 +193,7 @@ function safeStr_(v) {
   return String(v).trim();
 }
 
-// アドネス使用可否を 'yes' / 'no' / '' に正規化
+// Addness 使用可否を 'yes' / 'no' / '' に正規化
 function normalizeConsent_(v) {
   const s = String(v || '').trim().toLowerCase();
   if (!s) return '';

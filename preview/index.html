@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>みかみグルコン 質問回答シート（プレビュー）</title>
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --surface: #ffffff;
+      --surface-muted: #eef0f4;
+      --border: #e3e6ec;
+      --text: #1a1d24;
+      --text-muted: #5a6173;
+      --primary: #2a6df4;
+      --primary-hover: #1d57d1;
+      --primary-soft: #e5edff;
+      --success: #18a957;
+      --success-soft: #e5f6ec;
+      --warning: #d97706;
+      --danger: #d63a3a;
+      --answered-bg: #eceef2;
+      --answered-text: #6a7180;
+      --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 12px rgba(16, 24, 40, 0.06);
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    .preview-banner {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border-bottom: 1px solid #f59e0b;
+      color: #78350f;
+      padding: 8px 16px;
+      font-size: 12px;
+      text-align: center;
+      font-weight: 600;
+    }
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: saturate(140%) blur(8px);
+    }
+    .header-inner {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .title-block h1 {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: 0.01em;
+    }
+    .subtitle {
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .status {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .btn {
+      appearance: none;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.05s ease;
+      font-family: inherit;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-ghost { background: transparent; border-color: var(--border); color: var(--text); }
+    .btn-ghost:hover { background: var(--surface-muted); }
+    .btn-success { background: var(--success); color: #fff; border-color: var(--success); }
+    .btn-undo { background: transparent; color: var(--text-muted); border-color: var(--border); }
+    .btn-undo:hover { background: var(--surface-muted); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .container {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .board { margin-bottom: 8px; }
+    .board-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 6px 4px 12px;
+    }
+    .board-header h2 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin: 0;
+    }
+    .count {
+      display: inline-block;
+      margin-left: 8px;
+      background: var(--surface-muted);
+      color: var(--text-muted);
+      border-radius: 999px;
+      padding: 2px 9px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .hint { font-size: 11px; color: var(--text-muted); margin: 0; }
+    .divider { border: none; border-top: 1px dashed var(--border); margin: 24px 0 16px; }
+
+    .cards { display: flex; flex-direction: column; gap: 12px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+      transition: opacity 0.25s ease, background-color 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+    }
+    .card-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+      margin-bottom: 8px;
+    }
+    .card-top .name { font-weight: 700; font-size: 15px; }
+    .card-top .realname { font-size: 12px; color: var(--text-muted); }
+    .card-top .timestamp {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge-yes { background: var(--success-soft); color: var(--success); }
+    .badge-no { background: #fbe5e5; color: var(--danger); }
+    .badge-other { background: var(--surface-muted); color: var(--text-muted); }
+    .card-body {
+      font-size: 14.5px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--text);
+      margin: 8px 0 14px;
+    }
+    .card-actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+    }
+    .answered-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-right: auto;
+    }
+    .card.is-answered { background: var(--answered-bg); border-color: var(--border); box-shadow: none; }
+    .card.is-answered .name,
+    .card.is-answered .card-body { color: var(--answered-text); }
+    .card.is-answered .timestamp,
+    .card.is-answered .realname { color: var(--answered-text); }
+    .card.is-answered .badge-yes { background: #d8e5dd; color: #58756a; }
+    .card.is-answered .badge-no { background: #e8d8d8; color: #856060; }
+    .card.is-answered .badge-other { background: #e0e2e7; color: var(--answered-text); }
+    .card.flash { animation: flash 0.6s ease; }
+    @keyframes flash {
+      0% { transform: scale(1.0); background: var(--primary-soft); }
+      100% { transform: scale(1.0); background: var(--surface); }
+    }
+    .empty {
+      text-align: center;
+      padding: 28px 12px;
+      color: var(--text-muted);
+      font-size: 13px;
+      background: var(--surface);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+    }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%) translateY(20px);
+      background: #1a1d24;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 100;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.is-error { background: var(--danger); }
+    @media (max-width: 600px) {
+      .header-inner { padding: 12px 14px; }
+      .container { padding: 14px; }
+      .title-block h1 { font-size: 16px; }
+      .card { padding: 14px; }
+      .card-top .timestamp { margin-left: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-banner">
+    📌 これはローカルプレビューです（モックデータ表示中）。本番デプロイ後はスプレッドシートのデータで動きます。
+  </div>
+
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="title-block">
+        <h1>みかみグルコン 質問回答シート</h1>
+        <p class="subtitle">2026年4月以降の質問を表示／古い順（最新が下）</p>
+      </div>
+      <div class="header-actions">
+        <span class="status" id="status">プレビュー</span>
+        <button class="btn btn-ghost" id="refreshBtn" type="button">更新</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="board" id="pendingBoard">
+      <div class="board-header">
+        <h2>未回答<span class="count" id="pendingCount">0</span></h2>
+        <p class="hint">下に行くほど新しい質問です</p>
+      </div>
+      <div class="cards" id="pendingCards"></div>
+      <div class="empty" id="pendingEmpty" hidden>未回答の質問はありません</div>
+    </section>
+
+    <hr class="divider">
+
+    <section class="board" id="answeredBoard">
+      <div class="board-header">
+        <h2>回答済み<span class="count" id="answeredCount">0</span></h2>
+        <p class="hint">回答済みボタンを押した質問はここに移動します</p>
+      </div>
+      <div class="cards" id="answeredCards"></div>
+      <div class="empty" id="answeredEmpty" hidden>まだ回答済みの質問はありません</div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script>
+    // ====== モックデータ（本番ではスプレッドシートから取得） ======
+    const MOCK_DATA = [
+      {
+        rowId: 2,
+        timestamp: '2026-04-03T10:14:00+09:00',
+        timestampLabel: '2026/04/03 10:14',
+        studentName: 'みお',
+        realName: '山田美緒',
+        question: '集客のためにLINE公式アカウントを始めようと思っているのですが、最初にやるべきことはなんでしょうか？\n\n配信頻度や、最初のあいさつメッセージ、リッチメニューの設計など、優先度を教えていただけると嬉しいです。',
+        addnessConsent: 'yes',
+        answered: false,
+        answeredAtLabel: ''
+      },
+      {
+        rowId: 3,
+        timestamp: '2026-04-08T21:40:00+09:00',
+        timestampLabel: '2026/04/08 21:40',
+        studentName: 'けんた',
+        realName: '佐藤健太',
+        question: '広告の数値が悪化していて、CPAが2倍になってしまいました。どこから手を入れるべきでしょうか？',
+        addnessConsent: 'no',
+        answered: false,
+        answeredAtLabel: ''
+      },
+      {
+        rowId: 4,
+        timestamp: '2026-04-15T09:02:00+09:00',
+        timestampLabel: '2026/04/15 09:02',
+        studentName: 'あやの',
+        realName: '高橋彩乃',
+        question: 'コンテンツのネタが尽きてきて、毎回投稿するのが苦しくなってきました。みかみさんはどうやってネタをストックしていますか？',
+        addnessConsent: '',
+        answered: false,
+        answeredAtLabel: ''
+      },
+      {
+        rowId: 5,
+        timestamp: '2026-04-21T14:30:00+09:00',
+        timestampLabel: '2026/04/21 14:30',
+        studentName: 'ゆう',
+        realName: '伊藤悠',
+        question: '価格設定について相談です。現在5万円のコンサルを提供していますが、申込率が低くなってきました。\n\n値下げするか、提供価値を見直すか、どちらが良いでしょうか？',
+        addnessConsent: 'yes',
+        answered: true,
+        answeredAtLabel: '2026/04/22 19:00'
+      },
+      {
+        rowId: 6,
+        timestamp: '2026-04-28T16:48:00+09:00',
+        timestampLabel: '2026/04/28 16:48',
+        studentName: 'なつき',
+        realName: '中村なつき',
+        question: 'リールが伸びずに困っています。フォロワーは1500人いますが、再生回数が500前後で止まります。改善のヒントをいただきたいです。',
+        addnessConsent: 'no',
+        answered: false,
+        answeredAtLabel: ''
+      },
+      {
+        rowId: 7,
+        timestamp: '2026-05-02T11:05:00+09:00',
+        timestampLabel: '2026/05/02 11:05',
+        studentName: 'たかし',
+        realName: '小林貴志',
+        question: '法人化のタイミングについて。現在月商200万くらいですが、まだ早いでしょうか？',
+        addnessConsent: 'yes',
+        answered: false,
+        answeredAtLabel: ''
+      },
+      {
+        rowId: 8,
+        timestamp: '2026-05-06T22:20:00+09:00',
+        timestampLabel: '2026/05/06 22:20',
+        studentName: 'ひろき',
+        realName: '田中宏樹',
+        question: 'クライアントワークがしんどくなってきました。コミュニティ運営にシフトしたいのですが、どう移行すべきでしょうか？',
+        addnessConsent: '',
+        answered: false,
+        answeredAtLabel: ''
+      }
+    ];
+
+    // ====== ロジック（本番JSと同じ動き） ======
+    const els = {
+      status: document.getElementById('status'),
+      refresh: document.getElementById('refreshBtn'),
+      pendingCards: document.getElementById('pendingCards'),
+      answeredCards: document.getElementById('answeredCards'),
+      pendingEmpty: document.getElementById('pendingEmpty'),
+      answeredEmpty: document.getElementById('answeredEmpty'),
+      pendingCount: document.getElementById('pendingCount'),
+      answeredCount: document.getElementById('answeredCount'),
+      toast: document.getElementById('toast')
+    };
+
+    let state = { items: MOCK_DATA.slice() };
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, function(c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+      });
+    }
+
+    function consentBadge(value) {
+      if (value === 'yes') return '<span class="badge badge-yes">Addness使用 OK</span>';
+      if (value === 'no') return '<span class="badge badge-no">Addness使用 NG</span>';
+      if (!value) return '<span class="badge badge-other">Addness未回答</span>';
+      return '<span class="badge badge-other">Addness: ' + escapeHtml(value) + '</span>';
+    }
+
+    function cardTemplate(item) {
+      const isAnswered = item.answered;
+      const className = 'card' + (isAnswered ? ' is-answered' : '');
+      const studentName = escapeHtml(item.studentName) || '<span style="color:var(--text-muted)">(未入力)</span>';
+      const realName = item.realName ? '<span class="realname">本名: ' + escapeHtml(item.realName) + '</span>' : '';
+      const ts = escapeHtml(item.timestampLabel) || '';
+      const body = escapeHtml(item.question) || '<span style="color:var(--text-muted)">(質問内容が空です)</span>';
+      const badge = consentBadge(item.addnessConsent);
+      const answeredMeta = isAnswered && item.answeredAtLabel
+        ? '<span class="answered-meta">回答済み: ' + escapeHtml(item.answeredAtLabel) + '</span>'
+        : '';
+      const button = isAnswered
+        ? '<button class="btn btn-undo" data-action="undo" data-row="' + item.rowId + '">未回答に戻す</button>'
+        : '<button class="btn btn-success" data-action="mark" data-row="' + item.rowId + '">回答済みにする</button>';
+      return ''
+        + '<article class="' + className + '" data-row="' + item.rowId + '">'
+        + '  <div class="card-top">'
+        + '    <span class="name">' + studentName + '</span>'
+        + '    ' + realName
+        + '    ' + badge
+        + '    <span class="timestamp">回答日 ' + ts + '</span>'
+        + '  </div>'
+        + '  <div class="card-body">' + body + '</div>'
+        + '  <div class="card-actions">'
+        + '    ' + answeredMeta
+        + '    ' + button
+        + '  </div>'
+        + '</article>';
+    }
+
+    function render() {
+      const items = state.items.slice().sort(function(a, b) {
+        return new Date(a.timestamp) - new Date(b.timestamp);
+      });
+      const pending = items.filter(function(i) { return !i.answered; });
+      const answered = items.filter(function(i) { return i.answered; });
+
+      els.pendingCards.innerHTML = pending.map(cardTemplate).join('');
+      els.answeredCards.innerHTML = answered.map(cardTemplate).join('');
+      els.pendingCount.textContent = pending.length;
+      els.answeredCount.textContent = answered.length;
+      els.pendingEmpty.hidden = pending.length > 0;
+      els.answeredEmpty.hidden = answered.length > 0;
+
+      bindCardButtons();
+    }
+
+    function bindCardButtons() {
+      const buttons = document.querySelectorAll('[data-action]');
+      for (let i = 0; i < buttons.length; i++) {
+        buttons[i].addEventListener('click', onCardButton);
+      }
+    }
+
+    function onCardButton(e) {
+      const btn = e.currentTarget;
+      const rowId = parseInt(btn.getAttribute('data-row'), 10);
+      const action = btn.getAttribute('data-action');
+      const target = action === 'mark';
+
+      const it = state.items.find(function(x) { return x.rowId === rowId; });
+      if (!it) return;
+      it.answered = target;
+      it.answeredAtLabel = target ? formatNow() : '';
+
+      render();
+      flashCard(rowId);
+      showToast(target ? '回答済みに移動しました' : '未回答に戻しました');
+    }
+
+    function flashCard(rowId) {
+      const card = document.querySelector('.card[data-row="' + rowId + '"]');
+      if (!card) return;
+      card.classList.add('flash');
+      setTimeout(function() { card.classList.remove('flash'); }, 700);
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function formatNow() {
+      const d = new Date();
+      const pad = function(n) { return String(n).padStart(2, '0'); };
+      return d.getFullYear() + '/' + pad(d.getMonth() + 1) + '/' + pad(d.getDate())
+        + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    let toastTimer = null;
+    function showToast(msg, isError) {
+      els.toast.textContent = msg;
+      els.toast.classList.toggle('is-error', !!isError);
+      els.toast.hidden = false;
+      requestAnimationFrame(function() { els.toast.classList.add('show'); });
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(function() {
+        els.toast.classList.remove('show');
+        setTimeout(function() { els.toast.hidden = true; }, 250);
+      }, 2500);
+    }
+
+    els.refresh.addEventListener('click', function() {
+      showToast('プレビューモードのため再読み込みしません');
+    });
+
+    render();
+  </script>
+</body>
+</html>
