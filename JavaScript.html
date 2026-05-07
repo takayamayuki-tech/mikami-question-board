@@ -1,0 +1,216 @@
+<script>
+(function() {
+  'use strict';
+
+  const POLL_INTERVAL_MS = 30000; // 30秒ごとにバックグラウンドで自動更新
+
+  const els = {
+    status: document.getElementById('status'),
+    refresh: document.getElementById('refreshBtn'),
+    pendingCards: document.getElementById('pendingCards'),
+    answeredCards: document.getElementById('answeredCards'),
+    pendingEmpty: document.getElementById('pendingEmpty'),
+    answeredEmpty: document.getElementById('answeredEmpty'),
+    pendingCount: document.getElementById('pendingCount'),
+    answeredCount: document.getElementById('answeredCount'),
+    toast: document.getElementById('toast')
+  };
+
+  let state = {
+    items: [],
+    busyRows: new Set(),
+    pollTimer: null
+  };
+
+  // ====== API ======
+  function fetchList() {
+    return new Promise(function(resolve, reject) {
+      google.script.run
+        .withSuccessHandler(function(data) { resolve(data || []); })
+        .withFailureHandler(function(err) { reject(err); })
+        .getQuestions();
+    });
+  }
+
+  function updateAnswered(rowId, answered) {
+    return new Promise(function(resolve, reject) {
+      google.script.run
+        .withSuccessHandler(function(data) { resolve(data); })
+        .withFailureHandler(function(err) { reject(err); })
+        .setAnswered(rowId, answered);
+    });
+  }
+
+  // ====== Render ======
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"']/g, function(c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
+
+  function consentBadge(value) {
+    if (value === 'yes') return '<span class="badge badge-yes">アドネス使用 OK</span>';
+    if (value === 'no') return '<span class="badge badge-no">アドネス使用 NG</span>';
+    if (!value) return '<span class="badge badge-other">アドネス未回答</span>';
+    return '<span class="badge badge-other">アドネス: ' + escapeHtml(value) + '</span>';
+  }
+
+  function cardTemplate(item) {
+    const isAnswered = item.answered;
+    const className = 'card' + (isAnswered ? ' is-answered' : '');
+
+    const studentName = escapeHtml(item.studentName) || '<span style="color:var(--text-muted)">(未入力)</span>';
+    const realName = item.realName ? '<span class="realname">本名: ' + escapeHtml(item.realName) + '</span>' : '';
+    const ts = escapeHtml(item.timestampLabel) || '';
+    const body = escapeHtml(item.question) || '<span style="color:var(--text-muted)">(質問内容が空です)</span>';
+    const badge = consentBadge(item.addnessConsent);
+
+    const answeredMeta = isAnswered && item.answeredAtLabel
+      ? '<span class="answered-meta">回答済み: ' + escapeHtml(item.answeredAtLabel) + '</span>'
+      : '';
+
+    const button = isAnswered
+      ? '<button class="btn btn-undo" data-action="undo" data-row="' + item.rowId + '">未回答に戻す</button>'
+      : '<button class="btn btn-success" data-action="mark" data-row="' + item.rowId + '">回答済みにする</button>';
+
+    return ''
+      + '<article class="' + className + '" data-row="' + item.rowId + '">'
+      + '  <div class="card-top">'
+      + '    <span class="name">' + studentName + '</span>'
+      + '    ' + realName
+      + '    ' + badge
+      + '    <span class="timestamp">回答日 ' + ts + '</span>'
+      + '  </div>'
+      + '  <div class="card-body">' + body + '</div>'
+      + '  <div class="card-actions">'
+      + '    ' + answeredMeta
+      + '    ' + button
+      + '  </div>'
+      + '</article>';
+  }
+
+  function render() {
+    const pending = state.items.filter(function(i) { return !i.answered; });
+    const answered = state.items.filter(function(i) { return i.answered; });
+
+    els.pendingCards.innerHTML = pending.map(cardTemplate).join('');
+    els.answeredCards.innerHTML = answered.map(cardTemplate).join('');
+
+    els.pendingCount.textContent = pending.length;
+    els.answeredCount.textContent = answered.length;
+
+    els.pendingEmpty.hidden = pending.length > 0;
+    els.answeredEmpty.hidden = answered.length > 0;
+
+    bindCardButtons();
+  }
+
+  function bindCardButtons() {
+    const buttons = document.querySelectorAll('[data-action]');
+    for (let i = 0; i < buttons.length; i++) {
+      buttons[i].addEventListener('click', onCardButton);
+    }
+  }
+
+  function onCardButton(e) {
+    const btn = e.currentTarget;
+    const rowId = parseInt(btn.getAttribute('data-row'), 10);
+    const action = btn.getAttribute('data-action');
+    if (!rowId || state.busyRows.has(rowId)) return;
+
+    const target = action === 'mark';
+    state.busyRows.add(rowId);
+    btn.disabled = true;
+    btn.textContent = '更新中…';
+
+    updateAnswered(rowId, target)
+      .then(function() {
+        const it = state.items.find(function(x) { return x.rowId === rowId; });
+        if (it) {
+          it.answered = target;
+          if (target) {
+            it.answeredAtLabel = formatNow();
+          } else {
+            it.answeredAtLabel = '';
+          }
+        }
+        render();
+        flashCard(rowId);
+        showToast(target ? '回答済みに移動しました' : '未回答に戻しました');
+      })
+      .catch(function(err) {
+        console.error(err);
+        showToast('更新に失敗しました: ' + (err && err.message ? err.message : err), true);
+      })
+      .then(function() {
+        state.busyRows.delete(rowId);
+      });
+  }
+
+  function flashCard(rowId) {
+    const card = document.querySelector('.card[data-row="' + rowId + '"]');
+    if (!card) return;
+    card.classList.add('flash');
+    setTimeout(function() { card.classList.remove('flash'); }, 700);
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function formatNow() {
+    const d = new Date();
+    const pad = function(n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '/' + pad(d.getMonth() + 1) + '/' + pad(d.getDate())
+      + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  // ====== Toast ======
+  let toastTimer = null;
+  function showToast(msg, isError) {
+    els.toast.textContent = msg;
+    els.toast.classList.toggle('is-error', !!isError);
+    els.toast.hidden = false;
+    requestAnimationFrame(function() { els.toast.classList.add('show'); });
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function() {
+      els.toast.classList.remove('show');
+      setTimeout(function() { els.toast.hidden = true; }, 250);
+    }, 2500);
+  }
+
+  // ====== Loader ======
+  function setStatus(text) {
+    els.status.textContent = text;
+  }
+
+  function load(showSpinner) {
+    if (showSpinner) setStatus('読み込み中…');
+    return fetchList()
+      .then(function(items) {
+        state.items = Array.isArray(items) ? items : [];
+        render();
+        setStatus('最終更新 ' + formatNow());
+      })
+      .catch(function(err) {
+        console.error(err);
+        setStatus('読み込みエラー');
+        showToast('読み込みに失敗しました', true);
+      });
+  }
+
+  function startPolling() {
+    if (state.pollTimer) clearInterval(state.pollTimer);
+    state.pollTimer = setInterval(function() {
+      // ボタン操作中は競合を避けてスキップ
+      if (state.busyRows.size > 0) return;
+      load(false);
+    }, POLL_INTERVAL_MS);
+  }
+
+  // ====== Init ======
+  els.refresh.addEventListener('click', function() { load(true); });
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) load(false);
+  });
+
+  load(true).then(startPolling);
+})();
+</script>

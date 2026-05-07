@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>三上グルコン 質問回答ボード</title>
+  <?!= include('Stylesheet'); ?>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="title-block">
+        <h1>三上グルコン 質問回答ボード</h1>
+        <p class="subtitle">2026年4月以降の質問を表示／古い順（最新が下）</p>
+      </div>
+      <div class="header-actions">
+        <span class="status" id="status">読み込み中…</span>
+        <button class="btn btn-ghost" id="refreshBtn" type="button" aria-label="更新">
+          更新
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="board" id="pendingBoard" aria-label="未回答の質問">
+      <div class="board-header">
+        <h2>未回答<span class="count" id="pendingCount">0</span></h2>
+        <p class="hint">下に行くほど新しい質問です</p>
+      </div>
+      <div class="cards" id="pendingCards"></div>
+      <div class="empty" id="pendingEmpty" hidden>未回答の質問はありません</div>
+    </section>
+
+    <hr class="divider" aria-hidden="true">
+
+    <section class="board answered-board" id="answeredBoard" aria-label="回答済みの質問">
+      <div class="board-header">
+        <h2>回答済み<span class="count" id="answeredCount">0</span></h2>
+        <p class="hint">回答済みボタンを押した質問はここに移動します</p>
+      </div>
+      <div class="cards" id="answeredCards"></div>
+      <div class="empty" id="answeredEmpty" hidden>まだ回答済みの質問はありません</div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <?!= include('JavaScript'); ?>
+</body>
+</html>
