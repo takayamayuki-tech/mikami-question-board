@@ -11,7 +11,7 @@ const SPREADSHEET_ID = '1WYvHNapbrnOU5_oe4FStzkAX6GQa1CbqEMaDVopeM_I';
 const SHEET_NAME = ''; // 空文字 = 1枚目のシートを自動採用
 const FILTER_FROM = new Date('2026-04-01T00:00:00+09:00'); // 2026/4/1 以降の質問のみ表示
 const ANSWERED_COL_NAME = '回答済み';
-const ANSWERED_AT_COL_NAME = '回答日時';
+const ANSWERED_AT_COL_NAME = '回答済み日時'; // 元データの「回答日時」と区別するため接頭辞を変更
 
 // ヘッダー名の候補（スプレッドシート側がどんな表記でもマッチするように）
 // ※ 「回答者ID」のような ID 系列にマッチしないよう、ネガティブも考慮した順序で書く。
