@@ -14,13 +14,17 @@ const ANSWERED_COL_NAME = '回答済み';
 const ANSWERED_AT_COL_NAME = '回答日時';
 
 // ヘッダー名の候補（スプレッドシート側がどんな表記でもマッチするように）
+// ※ 「回答者ID」のような ID 系列にマッチしないよう、ネガティブも考慮した順序で書く。
 const HEADER_PATTERNS = {
-  timestamp: [/タイムスタンプ/, /timestamp/i, /回答日$/, /送信日時/, /日時/],
-  studentName: [/受講生/, /回答者/, /ニックネーム/, /お名前\(.*ニック/, /表示名/],
+  timestamp: [/タイムスタンプ/, /timestamp/i, /回答日時/, /^回答日$/, /送信日時/, /日時/],
+  studentName: [/回答者名/, /受講生(名|さん)?$/, /^受講生/, /ニックネーム/, /お名前.*ニック/, /表示名/],
   realName: [/本名/, /氏名/, /フルネーム/, /^名前$/, /お名前$/],
-  question: [/質問内容/, /質問.*内容/, /三上.*質問/, /みかみ.*質問/, /^質問/, /相談/],
+  question: [/質問.*相談/, /相談.*質問/, /質問内容/, /質問.*内容/, /(三上|みかみ).*質問/, /^質問/, /相談/],
   addnessConsent: [/[Aa]ddness/, /アドネス/]
 };
+
+// 明示的に除外したい列名（ID 系など）
+const EXCLUDE_PATTERNS = [/ID$/i, /\bID\b/i];
 
 // ===== Web App エントリーポイント =====
 function doGet(e) {
@@ -73,23 +77,23 @@ function getQuestions() {
 
   for (let r = 1; r < values.length; r++) {
     const row = values[r];
-    const ts = row[colMap.timestamp];
-    if (!(ts instanceof Date)) continue;
+    const ts = parseDate_(row[colMap.timestamp]);
+    if (!ts) continue;
     if (ts < FILTER_FROM) continue;
 
     const answered = !!row[colMap.answered];
-    const answeredAt = row[colMap.answeredAt];
+    const answeredAt = parseDate_(row[colMap.answeredAt]);
 
     result.push({
       rowId: r + 1, // スプレッドシートの行番号（1始まり）
       timestamp: ts.toISOString(),
       timestampLabel: Utilities.formatDate(ts, tz, 'yyyy/MM/dd HH:mm'),
-      studentName: safeStr_(row[colMap.studentName]),
-      realName: safeStr_(row[colMap.realName]),
-      question: safeStr_(row[colMap.question]),
-      addnessConsent: normalizeConsent_(row[colMap.addnessConsent]),
+      studentName: safeStr_(colMap.studentName >= 0 ? row[colMap.studentName] : ''),
+      realName: safeStr_(colMap.realName >= 0 ? row[colMap.realName] : ''),
+      question: safeStr_(colMap.question >= 0 ? row[colMap.question] : ''),
+      addnessConsent: normalizeConsent_(colMap.addnessConsent >= 0 ? row[colMap.addnessConsent] : ''),
       answered: answered,
-      answeredAtLabel: answeredAt instanceof Date
+      answeredAtLabel: answeredAt
         ? Utilities.formatDate(answeredAt, tz, 'yyyy/MM/dd HH:mm')
         : ''
     });
@@ -165,11 +169,14 @@ function mapColumns_(header) {
     if (h === ANSWERED_COL_NAME) { map.answered = i; continue; }
     if (h === ANSWERED_AT_COL_NAME) { map.answeredAt = i; continue; }
 
+    // ID 系の列はスキップ（「回答者ID」が「回答者名」より先に来てもマッチしないように）
+    const isExcluded = matchAny_(h, EXCLUDE_PATTERNS);
+
     if (map.timestamp === -1 && matchAny_(h, HEADER_PATTERNS.timestamp)) { map.timestamp = i; continue; }
-    if (map.studentName === -1 && matchAny_(h, HEADER_PATTERNS.studentName)) { map.studentName = i; continue; }
-    if (map.realName === -1 && matchAny_(h, HEADER_PATTERNS.realName)) { map.realName = i; continue; }
-    if (map.question === -1 && matchAny_(h, HEADER_PATTERNS.question)) { map.question = i; continue; }
-    if (map.addnessConsent === -1 && matchAny_(h, HEADER_PATTERNS.addnessConsent)) { map.addnessConsent = i; continue; }
+    if (!isExcluded && map.studentName === -1 && matchAny_(h, HEADER_PATTERNS.studentName)) { map.studentName = i; continue; }
+    if (!isExcluded && map.realName === -1 && matchAny_(h, HEADER_PATTERNS.realName)) { map.realName = i; continue; }
+    if (!isExcluded && map.question === -1 && matchAny_(h, HEADER_PATTERNS.question)) { map.question = i; continue; }
+    if (!isExcluded && map.addnessConsent === -1 && matchAny_(h, HEADER_PATTERNS.addnessConsent)) { map.addnessConsent = i; continue; }
   }
 
   // タイムスタンプが見つからなければ A列をフォールバック
@@ -191,6 +198,25 @@ function safeStr_(v) {
     return Utilities.formatDate(v, tz, 'yyyy/MM/dd HH:mm');
   }
   return String(v).trim();
+}
+
+// 値を Date に変換。Date インスタンス、ISO文字列、yyyy/MM/dd 等に対応
+function parseDate_(v) {
+  if (!v && v !== 0) return null;
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+  if (typeof v === 'number') {
+    // Sheets のシリアル値（1900-01-01 起点）には今回は対応せず素直に new Date を試す
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const s = String(v).trim();
+  if (!s) return null;
+  // 「2024-10-02」「2024/10/02 12:34」「2024-10-02T12:34:00」など幅広く対応
+  const normalized = s.replace(/-/g, '/');
+  const d = new Date(normalized);
+  if (!isNaN(d.getTime())) return d;
+  const d2 = new Date(s);
+  return isNaN(d2.getTime()) ? null : d2;
 }
 
 // Addness 登録状態を 'yes'(登録済み) / 'no'(未登録) / '' に正規化
@@ -219,4 +245,32 @@ function debug_listFirstRows() {
 
 function debug_getQuestions() {
   Logger.log(JSON.stringify(getQuestions(), null, 2));
+}
+
+// 列の自動マッピング結果と、各列のヘッダーを表示する診断関数
+function debug_inspectMapping() {
+  const sheet = getSheet_();
+  const header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const colMap = mapColumns_(header);
+  const labelOf = function(idx) {
+    if (idx == null || idx < 0) return '(検出されず)';
+    return String.fromCharCode(65 + idx) + '列「' + header[idx] + '」';
+  };
+  Logger.log('--- ヘッダー ---');
+  for (let i = 0; i < header.length; i++) {
+    Logger.log('  ' + String.fromCharCode(65 + i) + ': ' + header[i]);
+  }
+  Logger.log('--- 自動マッピング ---');
+  Logger.log('  timestamp     -> ' + labelOf(colMap.timestamp));
+  Logger.log('  studentName   -> ' + labelOf(colMap.studentName));
+  Logger.log('  realName      -> ' + labelOf(colMap.realName));
+  Logger.log('  question      -> ' + labelOf(colMap.question));
+  Logger.log('  addnessConsent-> ' + labelOf(colMap.addnessConsent));
+  Logger.log('  answered      -> ' + labelOf(colMap.answered));
+  Logger.log('  answeredAt    -> ' + labelOf(colMap.answeredAt));
+  const items = getQuestions();
+  Logger.log('--- 抽出件数: ' + items.length + ' 件（FILTER_FROM=' + FILTER_FROM.toISOString() + ' 以降） ---');
+  for (let i = 0; i < Math.min(3, items.length); i++) {
+    Logger.log('  ' + JSON.stringify(items[i]));
+  }
 }
